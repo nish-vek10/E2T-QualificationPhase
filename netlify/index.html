@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>E2T Country Allocation</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 24px; }
+    .row { display:flex; justify-content:space-between; padding:10px 12px; border-bottom:1px solid #eee; align-items:center;}
+    .bar { height:10px; background:#ddd; border-radius:4px; margin-top:6px; width:320px;}
+    .fill { height:10px; background:#69f; border-radius:4px; }
+    .card { max-width:720px; margin:0 auto; }
+    h1 { font-weight:600; margin-bottom:8px; }
+    .muted { color:#666; font-size:12px; margin-bottom:16px;}
+    .country { min-width:150px; }
+  </style>
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+    // Fill these with your actual values in Netlify ENV (see Step 3.3):
+    const supabaseUrl = window.SUPABASE_URL || "https://YOUR_PROJECT.supabase.co";
+    const supabaseKey = window.SUPABASE_ANON_KEY || "YOUR_ANON_KEY";
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    async function loadTotals() {
+      const { data, error } = await supabase
+        .from("v_e2t_country_allocation")
+        .select("country,total_plan")
+        .order("total_plan", { ascending: false });
+
+      if (error) {
+        document.querySelector("#app").innerHTML = "<p>Failed to load: " + (error.message || error) + "</p>";
+        return;
+      }
+
+      const total = (data || []).reduce((s, r) => s + Number(r.total_plan||0), 0);
+      const base = Math.max(total, 1);
+      let html = `<div class="card"><h1>Country Allocation</h1>
+      <div class="muted">Total AUM: $${total.toLocaleString()}</div>`;
+
+      for (const row of data) {
+        const plan = Number(row.total_plan || 0);
+        const pct = Math.max(0, Math.min(100, (plan / base) * 100));
+        html += `
+          <div class="row">
+            <div class="country"><strong>${row.country || "Unknown"}</strong></div>
+            <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+            <div>$${plan.toLocaleString()}</div>
+          </div>`;
+      }
+      html += `</div>`;
+      document.querySelector("#app").innerHTML = html;
+    }
+
+    loadTotals();
+  </script>
+</head>
+<body>
+  <div id="app">Loading…</div>
+</body>
+</html>
