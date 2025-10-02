@@ -1,0 +1,11 @@
+# netlify.toml at repo root
+
+[build]
+  base    = ""
+  command = "npm install && npm run build --prefix frontend"
+  publish = "frontend/build"
+
+[[redirects]]
+  from = "/*"
+  to   = "/index.html"
+  status = 200
