@@ -17,9 +17,8 @@
   <script type="module">
     import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-    // Fill these with your actual values in Netlify ENV (see Step 3.3):
-    const supabaseUrl = window.SUPABASE_URL || "https://YOUR_PROJECT.supabase.co";
-    const supabaseKey = window.SUPABASE_ANON_KEY || "YOUR_ANON_KEY";
+    const supabaseUrl = window.SUPABASE_URL || "https://vdtuneabmsvfmfopmpdc.supabase.co";
+    const supabaseKey = window.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkdHVuZWFibXN2Zm1mb3BtcGRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNDQ1ODgsImV4cCI6MjA3NDgyMDU4OH0.gRuI2YURZdBWwsWsuFmpfwFcdoU5aJoE369fnF-HOLo";
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     async function loadTotals() {
