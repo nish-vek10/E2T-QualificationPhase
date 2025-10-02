@@ -1,1 +1,1 @@
-worker: python -m app.worker
+worker: python -m app.scheduler
