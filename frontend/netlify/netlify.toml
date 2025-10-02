@@ -1,0 +1,5 @@
+# (optional) at repo root — only for SPA routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
