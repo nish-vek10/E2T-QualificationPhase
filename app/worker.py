@@ -16,6 +16,20 @@ from .config import (
 from .classify import split_excluded
 from .aggregate import recompute_country_totals
 
+# --- Netlify trigger ---
+from .config import E2T_NOTIFY_NETLIFY, NETLIFY_BUILD_HOOK_URL
+
+def _trigger_netlify():
+    if not (E2T_NOTIFY_NETLIFY and NETLIFY_BUILD_HOOK_URL):
+        return
+    try:
+        # small payload helps identify in Netlify logs
+        r = requests.post(NETLIFY_BUILD_HOOK_URL, json={"trigger": "e2t-nightly"}, timeout=10)
+        print(f"[NETLIFY] Build hook POST → {r.status_code}")
+    except Exception as e:
+        print(f"[NETLIFY] Build hook failed: {e}")
+
+
 # ---------- Tunables via env ----------
 MAX_WORKERS      = int(os.environ.get("E2T_MAX_WORKERS", "8"))         # threads for Sirix calls
 LOG_EVERY        = int(os.environ.get("E2T_LOG_EVERY", "500"))         # heartbeat interval
@@ -283,6 +297,9 @@ def run_once():
     # 6) Totals
     recompute_country_totals()
     print("[DONE] Country allocation recomputed.")
+
+    # 6a) Notify Netlify (optional)
+    _trigger_netlify()
 
     # 7) Summary
     elapsed = time.time() - started
