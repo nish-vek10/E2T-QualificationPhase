@@ -1,1 +1,1 @@
-worker: python -m app.scheduler
+worker: qgtunnel python -m app.scheduler

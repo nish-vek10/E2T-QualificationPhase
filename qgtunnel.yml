@@ -1,0 +1,5 @@
+tunnels:
+  - name: mssql
+    local_port: 15433
+    remote_host: crmrepl3.LEVERATETECH.COM
+    remote_port: 1433

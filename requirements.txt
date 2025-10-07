@@ -6,3 +6,4 @@ tzdata
 pymssql
 sqlalchemy-pytds
 python-tds
+qgtunnel
