@@ -126,8 +126,18 @@ def main():
 
     # --- read SQL Server ---
     print("[CRM] Extracting minimal columns …")
-    params = urllib.parse.quote_plus(MSSQL_ODBC_DSN)
-    engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
+
+    # Prefer a pure-Python driver on Heroku (no OS ODBC needed)
+    MSSQL_URL = os.environ.get("MSSQL_URL", "").strip()
+
+    if MSSQL_URL:
+        # Example: mssql+pytds://USER:PASS@HOST:1433/DBNAME?charset=utf8
+        engine = create_engine(MSSQL_URL, pool_pre_ping=True)
+    else:
+        # Fallback: Windows/local ODBC DSN path
+        params = urllib.parse.quote_plus(MSSQL_ODBC_DSN)
+        engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}", pool_pre_ping=True)
+
     sql = """
     SELECT
         CAST(Lv_name AS NVARCHAR(255))              AS lv_name,

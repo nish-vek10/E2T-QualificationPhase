@@ -4,6 +4,7 @@ import time
 import math
 import random
 import requests
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any, Optional
 
@@ -21,6 +22,24 @@ LOG_EVERY        = int(os.environ.get("E2T_LOG_EVERY", "500"))         # heartbe
 UPSERT_BATCH     = int(os.environ.get("E2T_UPSERT_BATCH", "1000"))     # Supabase batch size
 SKIP_EXISTING    = os.environ.get("E2T_SKIP_EXISTING", "true").lower() in ("1","true","yes","y")
 # --------------------------------------
+
+# --- Plan cutoff (UTC). Only count "Initial Balance" tx at/after this instant ---
+PLAN_CUTOFF_STR = os.environ.get("E2T_PLAN_START_AT", "2025-10-01T00:00:00Z")
+
+def _parse_iso_utc(s: Optional[str]) -> Optional[datetime]:
+    """Parse ISO8601 strings like '2025-10-07T10:16:33.777Z' into aware UTC datetimes."""
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+_PLAN_CUTOFF_UTC = _parse_iso_utc(PLAN_CUTOFF_STR) or datetime(2025, 10, 1, 0, 0, 0, tzinfo=timezone.utc)
+
 
 # Supabase REST base and headers
 BASE_REST = f"{SUPABASE_URL.rstrip('/')}/rest/v1"
@@ -54,18 +73,39 @@ def fetch_country_and_plan(uid: Any) -> Optional[Dict[str, Any]]:
         r = requests.post(SIRIX_API_URL, headers=headers, json=payload, timeout=25)
         if r.status_code != 200:
             return {"__error__": f"{r.status_code}", "account_id": aid}
+
         data = r.json() or {}
+
         country = (data.get("UserData") or {}).get("UserDetails", {}).get("Country")
-        plan = None
+
+        # SUM all qualifying "Initial Balance" transactions at/after the cutoff.
+        total_amt = 0.0
+        found_any = False
+
         for t in (data.get("MonetaryTransactions") or []):
-            if str(t.get("Comment", "")).lower().startswith("initial balance"):
-                plan = t.get("Amount")
-                break
-        try:
-            plan = float(plan) if plan is not None else None
-        except Exception:
-            plan = None
+            comment = str(t.get("Comment", "")).strip().lower()
+            if not comment.startswith("initial balance"):
+                continue
+
+            tstamp = _parse_iso_utc(t.get("Time"))
+            if tstamp is None or tstamp < _PLAN_CUTOFF_UTC:
+                continue
+
+            amt = t.get("Amount")
+            try:
+                amt = float(amt)
+            except (TypeError, ValueError):
+                continue
+
+            if amt is None:
+                continue
+
+            total_amt += amt
+            found_any = True
+
+        plan = total_amt if found_any else None
         return {"account_id": aid, "country": country, "plan": plan}
+
     except Exception as e:
         return {"__error__": str(e)[:160], "account_id": aid}
 # -----------------------------------------------------------------------------------------------------------

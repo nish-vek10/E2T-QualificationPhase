@@ -1,5 +1,6 @@
 # app/scheduler.py
 import time
+import os
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -7,6 +8,21 @@ from .worker import run_once
 from .config import TZ_LABEL
 
 LONDON = ZoneInfo("Europe/London")
+
+REFRESH_CRM_FIRST = os.environ.get("E2T_REFRESH_CRM", "true").lower() in ("1","true","yes","y")
+
+def refresh_crm_if_enabled():
+    if not REFRESH_CRM_FIRST:
+        print("[SCHED] CRM refresh skipped (E2T_REFRESH_CRM=false).")
+        return
+    try:
+        print("[SCHED] CRM → lv_tpaccount_skim refresh starting…")
+        from .crm_loader_local import main as crm_main  # lazy import
+        crm_main()
+        print("[SCHED] CRM refresh done.")
+    except Exception as e:
+        print(f"[SCHED] CRM refresh FAILED: {e}")
+
 
 def next_midnight_london(now_utc: datetime) -> datetime:
     # Convert now to London time, jump to next day 00:00, then back to UTC
@@ -20,6 +36,7 @@ def main():
     # Run immediately once on boot so you see progress
     try:
         print("[SCHED] Boot run starting now.")
+        refresh_crm_if_enabled()
         run_once()
     except Exception as e:
         print(f"[SCHED] Boot run error: {e}")
@@ -37,6 +54,7 @@ def main():
         # wake → run
         try:
             print("[SCHED] Midnight run starting.")
+            refresh_crm_if_enabled()
             run_once()
         except Exception as e:
             print(f"[SCHED] Midnight run error: {e}")
