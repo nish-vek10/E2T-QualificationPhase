@@ -1,7 +1,8 @@
 requests
 pandas
 SQLAlchemy
-python-tds
 python-dotenv
 tzdata
+pymssql
 sqlalchemy-pytds
+python-tds
