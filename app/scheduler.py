@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 from .worker import run_once
 from .config import TZ_LABEL
+from .crm_loader_local import main as crm_refresh
 
 LONDON = ZoneInfo("Europe/London")
 
@@ -33,6 +34,20 @@ def next_midnight_london(now_utc: datetime) -> datetime:
 
 def main():
     print(f"[SCHED] Starting daily scheduler. Local TZ={TZ_LABEL} (Europe/London used for timing).")
+
+    # Boot run
+    try:
+        print("[SCHED] CRM → lv_tpaccount_skim refresh starting…")
+        crm_refresh()  # <-- no tiny timeout; let SQL run
+        print("[SCHED] CRM refresh done.")
+    except Exception as e:
+        print(f"[SCHED] CRM refresh FAILED: {e}")
+
+    try:
+        run_once()
+    except Exception as e:
+        print(f"[SCHED] Boot run error: {e}")
+
     # Run immediately once on boot so you see progress
     try:
         print("[SCHED] Boot run starting now.")
