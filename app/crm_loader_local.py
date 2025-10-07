@@ -129,27 +129,47 @@ def main():
 
     # Prefer a pure-Python driver on Heroku (no OS ODBC needed)
     mssql_url = os.environ.get("MSSQL_URL", "").strip()
-    engine = None
 
-    if mssql_url:
-        # Heroku-friendly pure Python driver (no ODBC)
-        # Example: mssql+pytds://user:pass@host:1433/etwotprop_mscrm?charset=utf8
-        engine = create_engine(mssql_url, pool_pre_ping=True, pool_recycle=300)
-    else:
-        # Local dev path (ODBC DSN)
-        params = urllib.parse.quote_plus(MSSQL_ODBC_DSN)
-        engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}",
-                               pool_pre_ping=True, pool_recycle=300)
+    try:
+        if mssql_url:
+            # Works for either mssql+pymssql:// or mssql+pytds://
+            driver = mssql_url.split("://", 1)[0]
+            conn_args = {"timeout": 30}  # both drivers accept this
+            if "pymssql" in driver:
+                # pymssql also supports login_timeout, and charset at connect level
+                conn_args.update({"login_timeout": 30, "charset": "utf8"})
 
-    sql = """
-    SELECT
-        CAST(Lv_name AS NVARCHAR(255))              AS lv_name,
-        CAST(Lv_TempName AS NVARCHAR(255))          AS lv_tempname,
-        CAST(lv_accountidName AS NVARCHAR(255))     AS lv_accountidname
-    FROM dbo.Lv_tpaccount
-    """
-    df = pd.read_sql(sql, engine)
-    
+            engine = create_engine(
+                mssql_url,
+                pool_pre_ping=True,
+                pool_recycle=300,
+                connect_args=conn_args,
+            )
+        else:
+            # Local dev via ODBC DSN (Windows/ODBC)
+            params = urllib.parse.quote_plus(MSSQL_ODBC_DSN)
+            engine = create_engine(
+                f"mssql+pyodbc:///?odbc_connect={params}",
+                pool_pre_ping=True,
+                pool_recycle=300,
+            )
+
+        sql = """
+        SELECT
+            CAST(Lv_name AS NVARCHAR(255))              AS lv_name,
+            CAST(Lv_TempName AS NVARCHAR(255))          AS lv_tempname,
+            CAST(lv_accountidName AS NVARCHAR(255))     AS lv_accountidname
+        FROM dbo.Lv_tpaccount
+        """
+        df = pd.read_sql(sql, engine)
+
+    except Exception:
+        # Print the real reason so we can see it in Heroku logs, then re-raise
+        import traceback
+        print("[CRM] FATAL while connecting/fetching:")
+        print(traceback.format_exc())
+        raise
+
     total = len(df)
     print(f"[CRM] Fetched {total:,} rows")
 
