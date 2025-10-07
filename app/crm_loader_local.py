@@ -128,15 +128,18 @@ def main():
     print("[CRM] Extracting minimal columns …")
 
     # Prefer a pure-Python driver on Heroku (no OS ODBC needed)
-    MSSQL_URL = os.environ.get("MSSQL_URL", "").strip()
+    mssql_url = os.environ.get("MSSQL_URL", "").strip()
+    engine = None
 
-    if MSSQL_URL:
-        # Example: mssql+pytds://USER:PASS@HOST:1433/DBNAME?charset=utf8
-        engine = create_engine(MSSQL_URL, pool_pre_ping=True)
+    if mssql_url:
+        # Heroku-friendly pure Python driver (no ODBC)
+        # Example: mssql+pytds://user:pass@host:1433/etwotprop_mscrm?charset=utf8
+        engine = create_engine(mssql_url, pool_pre_ping=True, pool_recycle=300)
     else:
-        # Fallback: Windows/local ODBC DSN path
+        # Local dev path (ODBC DSN)
         params = urllib.parse.quote_plus(MSSQL_ODBC_DSN)
-        engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}", pool_pre_ping=True)
+        engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}",
+                               pool_pre_ping=True, pool_recycle=300)
 
     sql = """
     SELECT
@@ -146,6 +149,7 @@ def main():
     FROM dbo.Lv_tpaccount
     """
     df = pd.read_sql(sql, engine)
+    
     total = len(df)
     print(f"[CRM] Fetched {total:,} rows")
 
