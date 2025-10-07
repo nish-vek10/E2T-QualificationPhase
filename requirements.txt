@@ -4,3 +4,4 @@ SQLAlchemy
 python-tds
 python-dotenv
 tzdata
+sqlalchemy-pytds
